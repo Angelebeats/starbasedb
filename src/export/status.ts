@@ -1,6 +1,7 @@
 import { StarbaseDBConfiguration } from '../handler'
 import { DataSource } from '../types'
 import { createResponse } from '../utils'
+import { DumpStatusResponse, DumpState } from './types'
 
 export async function dumpStatusRoute(
     taskId: string,
@@ -8,44 +9,34 @@ export async function dumpStatusRoute(
     config: StarbaseDBConfiguration
 ): Promise<Response> {
     try {
-        // Query the Durable Object for the task status
-        // We'll add a getDumpStatus method to the RPC
-        const status = await dataSource.rpc.executeQuery({
-            sql: 'SELECT value FROM _starbase_internal_state WHERE key = ?',
-            params: [`dump_state_${taskId}`]
-        }) as any[];
-
-        // Wait, the state is in ctx.storage, not necessarily in SQL.
-        // But the DO can expose it.
-        // Let's use a new RPC method or just reuse executeQuery if we can.
-        // Actually, it's better to add a specific RPC method for internal state.
-        
-        // For now, let's assume we'll add getInternalState to RPC
-        const dumpState = await dataSource.rpc.getInternalState(`dump_state_${taskId}`);
+        // Assume we'll add getInternalState to RPC
+        const dumpState = (await dataSource.rpc.getInternalState(
+            `dump_state_${taskId}`
+        )) as DumpState
 
         if (!dumpState) {
-            return createResponse(undefined, 'Task not found', 404);
+            return createResponse(undefined, 'Task not found', 404)
         }
 
-        const response: any = {
+        const response: DumpStatusResponse = {
             task_id: taskId,
             status: dumpState.status,
             progress: {
                 tables_completed: dumpState.currentTableIndex,
                 total_tables: dumpState.tables.length,
-            }
-        };
-
-        if (dumpState.status === 'completed') {
-            response.download_url = `/export/download/${taskId}`;
-        } else if (dumpState.status === 'failed') {
-            response.error = dumpState.error;
+            },
         }
 
-        return createResponse(response, undefined, 200);
+        if (dumpState.status === 'completed') {
+            response.download_url = `/export/download/${taskId}`
+        } else if (dumpState.status === 'failed') {
+            response.error = dumpState.error
+        }
+
+        return createResponse<DumpStatusResponse>(response, undefined, 200)
     } catch (error: any) {
-        console.error('Dump Status Error:', error);
-        return createResponse(undefined, 'Failed to get dump status', 500);
+        console.error('Dump Status Error:', error)
+        return createResponse(undefined, 'Failed to get dump status', 500)
     }
 }
 

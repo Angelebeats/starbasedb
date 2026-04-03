@@ -1,6 +1,7 @@
 import { StarbaseDBConfiguration } from '../handler'
 import { DataSource } from '../types'
 import { createResponse } from '../utils'
+import { DumpResponse } from './types'
 
 export async function dumpDatabaseRoute(
     dataSource: DataSource,
@@ -12,7 +13,7 @@ export async function dumpDatabaseRoute(
         // Call RPC to start the dump
         await dataSource.rpc.startDump(taskId)
 
-        return createResponse({ task_id: taskId }, undefined, 202)
+        return createResponse<DumpResponse>({ task_id: taskId }, undefined, 202)
     } catch (error: any) {
         console.error('Database Dump Error:', error)
         return createResponse(
